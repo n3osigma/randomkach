@@ -1,0 +1,78 @@
+import os
+import random
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
+from telegram.ext import CallbackContext
+
+# TOKEN = " "
+VIDEO_PATH = "./Randomkach"
+
+
+def get_random_video(muscle_group):
+    """
+    Get a random video filename from the specified muscle group.
+    """
+    all_files = os.listdir(VIDEO_PATH)
+    muscle_files = [f for f in all_files if f.startswith(muscle_group)]
+    return random.choice(muscle_files)
+
+
+def start(update: Update, context: CallbackContext):
+    """
+    Start function which sends a message when the command /start is issued.
+    """
+    keyboard = [
+        [
+            InlineKeyboardButton("Legs", callback_data='Legs'),
+            InlineKeyboardButton("Chest", callback_data='Chest'),
+            InlineKeyboardButton("Back", callback_data='Back')
+        ],
+        [
+            InlineKeyboardButton("Triceps", callback_data='Triceps'),
+            InlineKeyboardButton("Biceps", callback_data='Biceps'),
+            InlineKeyboardButton("Delta", callback_data='Delta')
+        ],
+        [InlineKeyboardButton("Cancel", callback_data='Cancel')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text('Please choose a muscle group:', reply_markup=reply_markup)
+
+
+def button(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+
+    muscle_group = query.data
+    if muscle_group == "Cancel":
+        query.edit_message_text(text="Cancelled.")
+        return
+
+    video_file = get_random_video(muscle_group)
+
+    with open(os.path.join(VIDEO_PATH, video_file), 'rb') as video:
+        # Отправляем видео как новое сообщение, а не редактируем существующее
+        context.bot.send_video(chat_id=query.message.chat_id, video=video, caption=f"Random video for {muscle_group}")
+
+
+def main():
+    # Create the Updater and pass it your bot's token.
+    updater = Updater(TOKEN)
+
+    # Get the dispatcher to register handlers
+    dp = updater.dispatcher
+
+    # on /start command answer in Telegram
+    dp.add_handler(CommandHandler("start", start))
+
+    # on non-command i.e message - echo the message on Telegram
+    dp.add_handler(CallbackQueryHandler(button))
+
+    # Start the Bot
+    updater.start_polling()
+
+    # Run the bot until you send a signal to stop
+    updater.idle()
+
+
+if __name__ == '__main__':
+    main()
